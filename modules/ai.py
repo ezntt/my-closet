@@ -1,13 +1,18 @@
 import streamlit as st
 from google import genai
 from PIL import Image
+import json
+
+gemini_model = "gemini-flash-latest"
+
+def get_client():
+    return genai.Client(api_key=st.secrets["gemini"]["api_key"])
 
 # retorna lista na ordem: categoria, cor, marca, nome curto, ocasiao, estacao, tecido, estilo
 def analisar_imagem(image_file):
     try:
-        client = genai.Client(api_key=st.secrets["gemini"]["api_key"])
+        client = get_client()
         
-        gemini_model = "gemini-flash-latest"
         
         img = Image.open(image_file)
         
@@ -48,3 +53,48 @@ def analisar_imagem(image_file):
     except Exception as e:
         st.error(f"Erro na comunicação com a IA: {str(e)}.\nTente novamente.")
         return None
+
+# NOVA FUNÇÃO: Gera sugestões de looks baseados nas roupas do usuário
+def sugerir_looks(lista_roupas, ocasiao_escolhida):
+    try:
+        client = get_client()
+
+        # Prepara o inventário para a IA ler (ID é crucial para recuperarmos a foto depois)
+        texto_inventario = ""
+        for item in lista_roupas:
+            texto_inventario += f"- ID: {item['id']} | Nome: {item['nome']} | Categoria: {item['categoria']} | Cor: {item['cor']} | Estilo: {item.get('estilo', '')}\n"
+            
+        prompt = f"""
+        Você é um Personal Stylist. Analise o inventário abaixo e crie 3 sugestões de looks para a ocasião: "{ocasiao_escolhida}".
+        
+        INVENTÁRIO:
+        {texto_inventario}
+        
+        REGRAS:
+        1. Use apenas os IDs listados.
+        2. Combine peças superiores, inferiores e calçados/acessórios de forma harmônica.
+        3. Responda ESTRITAMENTE um JSON puro, sem crases ```json, no seguinte formato:
+        
+        [
+            {{
+                "nome_look": "Nome Criativo",
+                "ids_pecas": [1, 5, 9],
+                "explicacao": "Por que funciona..."
+            }},
+            ...
+        ]
+        """
+        
+        response = client.models.generate_content(
+            model=gemini_model,
+            contents=prompt
+        )
+        
+        # Limpeza básica caso a IA mande markdown
+        texto_limpo = response.text.replace("```json", "").replace("```", "").strip()
+        
+        return json.loads(texto_limpo)
+        
+    except Exception as e:
+        st.error(f"Erro ao gerar looks: {e}")
+        return []

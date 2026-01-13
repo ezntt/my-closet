@@ -1,8 +1,53 @@
 import streamlit as st
 import pandas as pd
 from modules.database import salvar_roupa, atualizar_roupa, excluir_roupa, upload_imagem, buscar_roupas_usuario, registrar_emprestimo, registrar_devolucao
-from modules.ai import analisar_imagem
+from modules.ai import analisar_imagem, sugerir_looks # ADICIONADO AQUI
 from time import sleep
+
+# --- CSS HACK PARA ESTILO MOBILE ---
+def configurar_estilo():
+    st.markdown("""
+        <style>
+            /* 1. Remove o padding gigante do topo e rodapé para parecer app mobile */
+            .block-container {
+                padding-top: 1rem;
+                padding-bottom: 5rem;
+            }
+            
+            /* 2. Esconde o menu hamburger e o footer "Made with Streamlit" */
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            
+            /* 3. Estilo dos Cards (Containers com borda) */
+            /* Dá uma sombra suave e bordas arredondadas para destacar na tela branca */
+            [data-testid="stVerticalBlockBorderWrapper"] {
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                border: 1px solid #f0f0f0;
+                background-color: white;
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+            
+            /* 4. Melhora botões para toque */
+            button {
+                border-radius: 8px !important;
+                height: 3em !important; /* Botões mais altos para facilitar o toque */
+            }
+            
+            /* 5. Inputs mais modernos */
+            input, select, textarea {
+                border-radius: 8px !important;
+            }
+            
+            /* 6. Títulos menores para mobile */
+            h1 { font-size: 1.8rem !important; }
+            h2 { font-size: 1.5rem !important; }
+            h3 { font-size: 1.2rem !important; }
+            
+        </style>
+    """, unsafe_allow_html=True)
 
 # modal do empréstimo
 @st.dialog("Registrar Empréstimo")
@@ -13,7 +58,7 @@ def modal_emprestimo(id_roupa, nome_peca):
     data_dev = st.date_input("Previsão de Devolução", value=None)
     obs = st.text_area("Observação", placeholder="Ex: Cuidado com a mancha")
     
-    if st.button("Confirmar", type="primary"):
+    if st.button("Confirmar", type="primary", use_container_width=True):
         if para_quem:
             registrar_emprestimo(id_roupa, para_quem, data_dev, obs)
             st.success("Registrado!")
@@ -60,7 +105,7 @@ def modal_editar(item):
         estacao = st.selectbox("Estação", opt_estacao, index=get_index(opt_estacao, item.get('estacao')))
         estilo = st.selectbox("Estilo", opt_estilo, index=get_index(opt_estilo, item.get('estilo')))
 
-    if st.button("Salvar Alterações", type="primary"):
+    if st.button("Salvar Alterações", type="primary", use_container_width=True):
         with st.spinner("Atualizando..."):
             dados = {
                 "nome": nome, "categoria": cat, "cor": cor, "marca": marca,
@@ -86,10 +131,10 @@ def modal_excluir(id_roupa, nome_peca):
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Cancelar", width='stretch'):
+        if st.button("Cancelar", use_container_width=True):
             st.rerun()
     with col2:
-        if st.button("Sim, Excluir", type="primary", width='stretch'):
+        if st.button("Sim, Excluir", type="primary", use_container_width=True):
             excluir_roupa(id_roupa)
             st.success("Item excluído.")
             sleep(0.5)
@@ -97,6 +142,7 @@ def modal_excluir(id_roupa, nome_peca):
 
 # cadastro de peça
 def render_aba_cadastro(user_id):
+    configurar_estilo() # Aplica o CSS
     st.subheader("Nova Peça")
     
     # uploaded_file = st.file_uploader("Foto da Roupa (Uma IA preencherá os dados automaticamente)", type=['jpg', 'png', 'jpeg'])
@@ -104,10 +150,10 @@ def render_aba_cadastro(user_id):
     foto_camera = st.camera_input("Tirar foto agora")
     
     # OPÇÃO 2: Upload (Caso a foto já exista)
-    uploaded_file = st.file_uploader("Ou escolha da galeria", type=['jpg', 'png', 'jpeg'])
+    uploaded_file_galeria = st.file_uploader("Ou escolha da galeria", type=['jpg', 'png', 'jpeg'])
     
     # Lógica de Prioridade: Se tirou foto, usa a da câmera. Senão, tenta o upload.
-    uploaded_file = foto_camera if foto_camera else uploaded_file
+    uploaded_file = foto_camera if foto_camera else uploaded_file_galeria
     
     if 'form' not in st.session_state:
         st.session_state.form = {
@@ -116,8 +162,10 @@ def render_aba_cadastro(user_id):
         }
 
     # Botão IA
-    if uploaded_file and st.button("Preencher dados com IA"):
+    if uploaded_file and st.button("Preencher dados com IA", use_container_width=True):
         with st.spinner("Analisando (Gemini)..."):
+            # Reinicia ponteiro para leitura
+            uploaded_file.seek(0)
             dados_ia = analisar_imagem(uploaded_file)
             if dados_ia and len(dados_ia) >= 8:
                 st.session_state.form['cat'] = dados_ia[0]
@@ -160,14 +208,13 @@ def render_aba_cadastro(user_id):
             estacao = st.selectbox("Estação", opt_estacao, index=get_index(opt_estacao, st.session_state.form['estacao']))
             estilo = st.selectbox("Estilo", opt_estilo, index=get_index(opt_estilo, st.session_state.form['estilo']))
 
-    if st.button("Salvar no Guarda-Roupa", type="primary"):
+    if st.button("Salvar no Guarda-Roupa", type="primary", use_container_width=True):
         if nome:
             with st.spinner("Salvando..."):
                 url_img = None
                 if uploaded_file:
+                    uploaded_file.seek(0)
                     url_img = upload_imagem(uploaded_file, user_id)
-                    if url_img is None:
-                        st.warning("A imagem não pôde ser salva, mas os dados serão.")
                 
                 dados = {
                     "nome": nome, "categoria": cat, "cor": cor, "marca": marca,
@@ -192,6 +239,7 @@ def render_aba_cadastro(user_id):
 
 # acervo
 def render_aba_acervo():
+    configurar_estilo() # Aplica o CSS
     st.subheader("Meu Acervo")
     
     resp = buscar_roupas_usuario()
@@ -231,7 +279,7 @@ def render_aba_acervo():
                 with st.container(border=True):
                     # foto
                     if item.get('imagem_url'):
-                        st.image(item['imagem_url'], width='stretch')
+                        st.image(item['imagem_url'], use_container_width=True)
                     else:
                         st.markdown("<div style='height:120px; background:#f5f5f5; color:#999; display:flex; align-items:center; justify-content:center; border-radius:5px;'>Sem Imagem</div>", unsafe_allow_html=True)
                     
@@ -246,22 +294,73 @@ def render_aba_acervo():
                         st.markdown(f":red[Emprestado]")
                         st.caption(f"Para: {item.get('emprestado_para')}")
 
-                    with st.popover("Ações", width='stretch'):
+                    with st.popover("Ações", use_container_width=True):
                         
                         # Emprestar / Devolver
                         if item['status'] == 'Disponível':
-                            if st.button("Emprestar", key=f"emp_{item['id']}", width='stretch'):
+                            if st.button("Emprestar", key=f"emp_{item['id']}", use_container_width=True):
                                 modal_emprestimo(item['id'], item['nome'])
                         else:
-                            if st.button("Receber Devolução", key=f"dev_{item['id']}", type="primary", width='stretch'):
+                            if st.button("Receber Devolução", key=f"dev_{item['id']}", type="primary", use_container_width=True):
                                 registrar_devolucao(item['id'])
                                 st.rerun()
 
                         # Editar
-                        if st.button("Editar", key=f"edt_{item['id']}", width='stretch'):
+                        if st.button("Editar", key=f"edt_{item['id']}", use_container_width=True):
                             modal_editar(item)
 
                         # Excluir
                         st.divider()
-                        if st.button("Excluir", key=f"exc_{item['id']}", type="primary", width='stretch'):
+                        if st.button("Excluir", key=f"exc_{item['id']}", type="primary", use_container_width=True):
                             modal_excluir(item['id'], item['nome'])
+
+# NOVA ABA: STYLIST (COMBINAÇÕES DE LOOKS)
+def render_aba_stylist():
+    configurar_estilo()
+    st.subheader("🤖 IA Personal Stylist")
+    st.caption("A IA vai montar looks baseados no que você tem.")
+    
+    # 1. Pega roupas do banco
+    resp = buscar_roupas_usuario()
+    todas_roupas = resp.data
+    
+    # Filtra só disponíveis
+    disponiveis = [r for r in todas_roupas if r['status'] == 'Disponível']
+    
+    if len(disponiveis) < 2:
+        st.warning("Cadastre mais peças disponíveis para gerar looks!")
+        return
+
+    # 2. Selecionar ocasião
+    ocasiao = st.selectbox("Qual a ocasião?", 
+        ["Trabalho", "Passeio Casual", "Festa", "Academia", "Encontro", "Dia Frio", "Dia Quente"])
+        
+    if st.button("Gerar Looks", type="primary", use_container_width=True):
+        with st.spinner("Analisando seu guarda-roupa..."):
+            sugestoes = sugerir_looks(disponiveis, ocasiao)
+            if sugestoes:
+                st.session_state['looks_gerados'] = sugestoes
+            else:
+                st.error("Não foi possível gerar looks.")
+
+    # 3. Exibir resultados
+    if 'looks_gerados' in st.session_state:
+        st.divider()
+        for i, look in enumerate(st.session_state['looks_gerados']):
+            with st.container(border=True):
+                st.markdown(f"### Look {i+1}: {look.get('nome_look', 'Sugestão')}")
+                st.info(look.get('explicacao', ''))
+                
+                # Mostra as fotos das peças sugeridas lado a lado
+                ids = look.get('ids_pecas', [])
+                pecas_do_look = [p for p in disponiveis if p['id'] in ids]
+                
+                if pecas_do_look:
+                    cols = st.columns(len(pecas_do_look))
+                    for idx, peca in enumerate(pecas_do_look):
+                        with cols[idx]:
+                            if peca.get('imagem_url'):
+                                st.image(peca['imagem_url'], use_container_width=True)
+                            else:
+                                st.markdown("🖼️ (Sem foto)")
+                            st.caption(peca['nome'])
