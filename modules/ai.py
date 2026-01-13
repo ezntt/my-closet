@@ -2,11 +2,8 @@ import streamlit as st
 from google import genai
 from PIL import Image
 
+# retorna lista na ordem: categoria, cor, marca, nome curto, ocasiao, estacao, tecido, estilo
 def analisar_imagem(image_file):
-    """
-    Retorna lista na ordem: 
-    [Categoria, Cor, Marca, Nome, Ocasiao, Estacao, Tecido, Estilo]
-    """
     try:
         client = genai.Client(api_key=st.secrets["gemini"]["api_key"])
         
@@ -21,7 +18,7 @@ def analisar_imagem(image_file):
         
         1. Categoria (Ex: Camiseta, Calça, Vestido, Casaco, Tênis, Acessório, Saia, Shorts, Blusa)
         2. Cor Principal (Ex: Preto, Azul Marinho, Bege, Estampado)
-        3. Marca (Se visível, senão 'Genérica')
+        3. Marca (Se visível, senão 'Desconhecida')
         4. Nome Curto Sugerido (Ex: Camiseta Preta Básica)
         5. Ocasião (Escolha uma: Casual, Trabalho, Festa, Esporte, Formal)
         6. Estação Ideal (Escolha uma: Verão, Inverno, Meia-Estação, Todas)
@@ -39,16 +36,15 @@ def analisar_imagem(image_file):
         
         if response.text:
             partes = response.text.split(',')
-            # Precisamos de pelo menos 8 campos agora
             if len(partes) >= 8:
                 return [p.strip() for p in partes]
             else:
-                st.warning(f"IA retornou menos dados que o necessário: {len(partes)} campos encontrados.")
+                st.warning(f"A IA retornou menos dados que o necessário: {len(partes)} campos encontrados.\nTente novamente.")
                 return None
         else:
-            st.error("IA retornou resposta vazia.")
+            st.error("IA retornou resposta vazia.\nTente novamente.")
             return None
             
     except Exception as e:
-        st.error(f"Erro na comunicação com a IA: {str(e)}")
+        st.error(f"Erro na comunicação com a IA: {str(e)}.\nTente novamente.")
         return None

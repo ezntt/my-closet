@@ -11,7 +11,6 @@ def main():
     if not st.session_state.user:
         render_login()
     else:
-        # Pega nome
         meta = st.session_state.user.user_metadata
         nome = meta.get('full_name', st.session_state.user.email)
         

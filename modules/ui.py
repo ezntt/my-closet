@@ -4,7 +4,7 @@ from modules.database import salvar_roupa, upload_imagem, buscar_roupas_usuario,
 from modules.ai import analisar_imagem
 from time import sleep
 
-# --- MODAL EMPRÉSTIMO ---
+# modal do empréstimo
 @st.dialog("Registrar Empréstimo")
 def modal_emprestimo(id_roupa, nome_peca):
     st.write(f"Emprestando: **{nome_peca}**")
@@ -22,24 +22,22 @@ def modal_emprestimo(id_roupa, nome_peca):
         else:
             st.warning("Informe o nome da pessoa.")
 
-# --- CADASTRO ---
+# cadastro de peça
 def render_aba_cadastro(user_id):
     st.subheader("Nova Peça")
     
     uploaded_file = st.file_uploader("Foto da Roupa", type=['jpg', 'png', 'jpeg'])
     
-    # Inicializa estado do formulário se não existir
     if 'form' not in st.session_state:
         st.session_state.form = {
-            "nome": "", "cat": "Camiseta", "cor": "", "marca": "", 
-            "ocasiao": "Casual", "estacao": "Todas", "tecido": "Algodão", "estilo": "Básico"
+            "nome": "", "cat": "", "cor": "", "marca": "", 
+            "ocasiao": "", "estacao": "Todas", "tecido": "", "estilo": ""
         }
 
     # Botão IA
-    if uploaded_file and st.button("✨ Preencher com IA"):
-        with st.spinner("A IA está analisando o look..."):
+    if uploaded_file and st.button("Preencher dados com IA"):
+        with st.spinner("Analisando (Gemini)..."):
             dados_ia = analisar_imagem(uploaded_file)
-            # Esperamos 8 itens: [Cat, Cor, Marca, Nome, Ocasiao, Estacao, Tecido, Estilo]
             if dados_ia and len(dados_ia) >= 8:
                 st.session_state.form['cat'] = dados_ia[0]
                 st.session_state.form['cor'] = dados_ia[1]
@@ -51,15 +49,15 @@ def render_aba_cadastro(user_id):
                 st.session_state.form['estilo'] = dados_ia[7]
                 st.success("Dados identificados!")
             else:
-                st.warning("IA não conseguiu identificar todos os campos.")
+                st.warning("IA não conseguiu identificar todos os campos.\nPreencha manualmente.")
 
-    # --- FORMULÁRIO VISUAL ---
+    # form
     with st.container(border=True):
         nome = st.text_input("Nome da Peça", value=st.session_state.form['nome'])
         
-        c1, c2 = st.columns(2)
+        col1, col2 = st.columns(2)
         
-        # Listas de Opções
+        # opçoes de selectbox
         opt_cats = ["Camiseta", "Calça", "Vestido", "Casaco", "Tênis", "Acessório", "Saia", "Shorts", "Blusa"]
         opt_ocasiao = ["Casual", "Trabalho", "Festa", "Esporte", "Formal"]
         opt_estacao = ["Todas", "Verão", "Inverno", "Meia-Estação"]
@@ -70,18 +68,18 @@ def render_aba_cadastro(user_id):
             try: return lista.index(valor)
             except: return 0
 
-        with c1:
+        with col1:
             cat = st.selectbox("Categoria", opt_cats, index=get_index(opt_cats, st.session_state.form['cat']))
             cor = st.text_input("Cor", value=st.session_state.form['cor'])
             marca = st.text_input("Marca", value=st.session_state.form['marca'])
             tecido = st.text_input("Tecido", value=st.session_state.form['tecido'])
 
-        with c2:
+        with col2:
             ocasiao = st.selectbox("Ocasião", opt_ocasiao, index=get_index(opt_ocasiao, st.session_state.form['ocasiao']))
             estacao = st.selectbox("Estação", opt_estacao, index=get_index(opt_estacao, st.session_state.form['estacao']))
             estilo = st.selectbox("Estilo", opt_estilo, index=get_index(opt_estilo, st.session_state.form['estilo']))
 
-    if st.button("💾 Salvar no Guarda-Roupa", type="primary"):
+    if st.button("Salvar no Guarda-Roupa", type="primary"):
         if nome:
             with st.spinner("Salvando..."):
                 url_img = None
@@ -111,11 +109,10 @@ def render_aba_cadastro(user_id):
         else:
             st.error("O nome da peça é obrigatório.")
 
-# --- LISTAGEM (GRID) ---
+# acervo
 def render_aba_acervo():
     st.subheader("Meu Acervo")
     
-    # Busca dados
     resp = buscar_roupas_usuario()
     roupas = resp.data
     
@@ -123,14 +120,14 @@ def render_aba_acervo():
         st.info("Nenhuma roupa cadastrada.")
         return
 
-    # Filtros
+    # filtros
     col_f1, col_f2 = st.columns(2)
     with col_f1:
-        filtro_cat = st.selectbox("Filtrar Categoria", ["Todas"] + list(set([r['categoria'] for r in roupas])))
+        filtro_cat = st.selectbox("Categoria", ["Todas"] + list(set([r['categoria'] for r in roupas])))
     with col_f2:
         filtro_status = st.selectbox("Status", ["Todos", "Disponível", "Emprestado"])
 
-    # Aplica filtros locais
+
     lista_final = roupas
     if filtro_cat != "Todas":
         lista_final = [r for r in lista_final if r['categoria'] == filtro_cat]
@@ -141,7 +138,6 @@ def render_aba_acervo():
     cols = st.columns(3)
     
     for index, item in enumerate(lista_final):
-        # A matemática 'index % 3' escolhe a coluna (0, 1 ou 2)
         with cols[index % 3]:
             with st.container(border=True):
                 # Foto no topo do card
@@ -149,12 +145,13 @@ def render_aba_acervo():
                     st.image(item['imagem_url'], use_container_width=True)
                 else:
                     st.markdown(":grey[Sem foto]")
-
+                
+                # detalhes da peça
                 st.markdown(f"**{item['nome']}**")
                 st.caption(f"{item['categoria']} | {item['marca']}")
                 st.caption(f"_{item.get('ocasiao', '')} - {item.get('estilo', '')}_")
                 
-                # Controle de Status
+                # status
                 if item['status'] == 'Disponível':
                     st.markdown(":green[● Disponível]")
                     if st.button("Emprestar", key=f"emp_{item['id']}"):

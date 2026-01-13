@@ -2,8 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 import datetime
 
-# Cache resource evita reconectar toda hora (melhora performance)
-@st.cache_resource
+@st.cache_resource  # evita reconexões desnecessárias
 def init_connection():
     url = st.secrets["supabase"]["url"]
     key = st.secrets["supabase"]["key"]
@@ -11,13 +10,13 @@ def init_connection():
 
 supabase = init_connection()
 
+# bucket no supabase
 def upload_imagem(file, user_id):
-    """Sobe imagem para o bucket e retorna URL pública"""
     try:
-        # Garante que user_id seja string para o caminho
+
         user_path = str(user_id)
         
-        # Limpa o nome do arquivo para evitar erros de URL
+        # limpa nome do arquivo
         file_ext = file.name.split('.')[-1]
         timestamp = datetime.datetime.now().timestamp()
         file_name = f"{user_path}/{timestamp}.{file_ext}"
@@ -31,8 +30,6 @@ def upload_imagem(file, user_id):
             file_options={"content-type": file.type}
         )
         
-        # Retorna a URL pública
-        # IMPORTANTE: O Bucket 'fotos-roupas' PRECISA estar como PUBLIC no Supabase
         return supabase.storage.from_("fotos-roupas").get_public_url(file_name)
         
     except Exception as e:
@@ -40,15 +37,12 @@ def upload_imagem(file, user_id):
         return None
 
 def salvar_roupa(dados):
-    """Insere registro no banco com os novos campos"""
     return supabase.table("roupas").insert(dados).execute()
 
 def buscar_roupas_usuario():
-    """Busca todas as roupas (RLS garante que são só do usuário)"""
     return supabase.table("roupas").select("*").order("created_at", desc=True).execute()
 
 def registrar_emprestimo(id_roupa, nome_pessoa, data_dev, obs):
-    """Atualiza status para emprestado com detalhes"""
     dados = {
         "status": "Emprestado",
         "emprestado_para": nome_pessoa,
@@ -58,7 +52,6 @@ def registrar_emprestimo(id_roupa, nome_pessoa, data_dev, obs):
     return supabase.table("roupas").update(dados).eq("id", id_roupa).execute()
 
 def registrar_devolucao(id_roupa):
-    """Limpa dados de empréstimo e volta para Disponível"""
     dados = {
         "status": "Disponível",
         "emprestado_para": None,
@@ -66,3 +59,6 @@ def registrar_devolucao(id_roupa):
         "observacoes": None
     }
     return supabase.table("roupas").update(dados).eq("id", id_roupa).execute()
+
+def excluir_roupa(id_roupa):
+    return supabase.table("roupas").delete().eq("id", id_roupa).execute()

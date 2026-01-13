@@ -3,15 +3,15 @@ from modules.database import supabase
 from time import sleep
 
 def render_login():
-    st.markdown("## 🔐 Acesso ao Acervo")
-    
-    # Formulário simples centralizado
+    st.markdown("## Login")
+
     with st.container(border=True):
         email = st.text_input("Email")
         password = st.text_input("Senha", type="password")
         
-        c1, c2 = st.columns(2)
-        with c1:
+        login, cadastro = st.columns(2)
+
+        with login:
             if st.button("Entrar", type="primary", use_container_width=True):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": password})
@@ -21,8 +21,8 @@ def render_login():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro: {e}")
-
-        with c2:
+                    
+        with cadastro:
             with st.expander("Cadastrar"):
                 nome_completo = st.text_input("Nome Completo")
                 if st.button("Criar Conta", use_container_width=True):
