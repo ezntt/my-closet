@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from modules.database import salvar_roupa, upload_imagem, buscar_roupas_usuario, registrar_emprestimo, registrar_devolucao
+from modules.database import salvar_roupa, atualizar_roupa, excluir_roupa, upload_imagem, buscar_roupas_usuario, registrar_emprestimo, registrar_devolucao
 from modules.ai import analisar_imagem
 from time import sleep
 
@@ -22,11 +22,84 @@ def modal_emprestimo(id_roupa, nome_peca):
         else:
             st.warning("Informe o nome da pessoa.")
 
+# modal de edição (NOVO)
+@st.dialog("Editar Peça")
+def modal_editar(item):
+    st.write(f"Editando: **{item['nome']}**")
+    
+    # upload de nova foto (opcional)
+    nova_foto = st.file_uploader("Trocar Foto", type=['jpg', 'png', 'jpeg'])
+    if nova_foto:
+        st.info("Nova foto selecionada (será salva ao confirmar).")
+    elif item.get('imagem_url'):
+        st.image(item['imagem_url'], width=150, caption="Foto Atual")
+
+    # campos preenchidos com valor atual
+    nome = st.text_input("Nome da Peça", value=item['nome'])
+    
+    col1, col2 = st.columns(2)
+    
+    # mesmas listas do cadastro
+    opt_cats = ["Camiseta", "Calça", "Vestido", "Casaco", "Tênis", "Acessório", "Saia", "Shorts", "Blusa"]
+    opt_ocasiao = ["Casual", "Trabalho", "Festa", "Esporte", "Formal"]
+    opt_estacao = ["Todas", "Verão", "Inverno", "Meia-Estação"]
+    opt_estilo = ["Básico", "Vintage", "Streetwear", "Elegante", "Esportivo"]
+
+    def get_index(lista, valor):
+        try: return lista.index(valor)
+        except: return 0
+
+    with col1:
+        cat = st.selectbox("Categoria", opt_cats, index=get_index(opt_cats, item.get('categoria')))
+        cor = st.text_input("Cor", value=item.get('cor', ''))
+        marca = st.text_input("Marca", value=item.get('marca', ''))
+        tecido = st.text_input("Tecido", value=item.get('tecido', ''))
+
+    with col2:
+        ocasiao = st.selectbox("Ocasião", opt_ocasiao, index=get_index(opt_ocasiao, item.get('ocasiao')))
+        estacao = st.selectbox("Estação", opt_estacao, index=get_index(opt_estacao, item.get('estacao')))
+        estilo = st.selectbox("Estilo", opt_estilo, index=get_index(opt_estilo, item.get('estilo')))
+
+    if st.button("Salvar Alterações", type="primary"):
+        with st.spinner("Atualizando..."):
+            dados = {
+                "nome": nome, "categoria": cat, "cor": cor, "marca": marca,
+                "ocasiao": ocasiao, "estacao": estacao, "tecido": tecido, "estilo": estilo
+            }
+            
+            # se trocou a foto
+            if nova_foto:
+                url = upload_imagem(nova_foto, item['user_id'])
+                if url:
+                    dados['imagem_url'] = url
+            
+            atualizar_roupa(item['id'], dados)
+            st.success("Peça atualizada!")
+            sleep(0.5)
+            st.rerun()
+
+# modal de exclusão (NOVO)
+@st.dialog("Confirmar Exclusão")
+def modal_excluir(id_roupa, nome_peca):
+    st.warning(f"Tem certeza que deseja excluir **{nome_peca}**?")
+    st.caption("Esta ação não pode ser desfeita.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Cancelar", use_container_width=True):
+            st.rerun()
+    with col2:
+        if st.button("Sim, Excluir", type="primary", use_container_width=True):
+            excluir_roupa(id_roupa)
+            st.success("Item excluído.")
+            sleep(0.5)
+            st.rerun()
+
 # cadastro de peça
 def render_aba_cadastro(user_id):
     st.subheader("Nova Peça")
     
-    uploaded_file = st.file_uploader("Foto da Roupa", type=['jpg', 'png', 'jpeg'])
+    uploaded_file = st.file_uploader("Foto da Roupa (Uma IA preencherá os dados automaticamente)", type=['jpg', 'png', 'jpeg'])
     
     if 'form' not in st.session_state:
         st.session_state.form = {
@@ -123,42 +196,64 @@ def render_aba_acervo():
     # filtros
     col_f1, col_f2 = st.columns(2)
     with col_f1:
-        filtro_cat = st.selectbox("Categoria", ["Todas"] + list(set([r['categoria'] for r in roupas])))
+        pesquisa = st.text_input("Pesquisar", placeholder="Nome, marca ou cor...")
     with col_f2:
         filtro_status = st.selectbox("Status", ["Todos", "Disponível", "Emprestado"])
 
-
-    lista_final = roupas
-    if filtro_cat != "Todas":
-        lista_final = [r for r in lista_final if r['categoria'] == filtro_cat]
+    # lógica de filtro
+    if pesquisa:
+        roupas = [r for r in roupas if pesquisa.lower() in (r['nome']+r['cor']+r['marca']).lower()]
     if filtro_status != "Todos":
-        lista_final = [r for r in lista_final if r['status'] == filtro_status]
+        roupas = [r for r in roupas if r['status'] == filtro_status]
 
-    # GRID LAYOUT (3 Colunas)
-    cols = st.columns(3)
-    
-    for index, item in enumerate(lista_final):
-        with cols[index % 3]:
-            with st.container(border=True):
-                # Foto no topo do card
-                if item.get('imagem_url'):
-                    st.image(item['imagem_url'], use_container_width=True)
-                else:
-                    st.markdown(":grey[Sem foto]")
-                
-                # detalhes da peça
-                st.markdown(f"**{item['nome']}**")
-                st.caption(f"{item['categoria']} | {item['marca']}")
-                st.caption(f"_{item.get('ocasiao', '')} - {item.get('estilo', '')}_")
-                
-                # status
-                if item['status'] == 'Disponível':
-                    st.markdown(":green[● Disponível]")
-                    if st.button("Emprestar", key=f"emp_{item['id']}"):
-                        modal_emprestimo(item['id'], item['nome'])
-                else:
-                    st.markdown(f":red[● Emprestado]")
-                    st.caption(f"Com: {item.get('emprestado_para')}")
-                    if st.button("Devolver", key=f"dev_{item['id']}"):
-                        registrar_devolucao(item['id'])
-                        st.rerun()
+    # organização por categoria
+    categorias_existentes = list(set([r['categoria'] for r in roupas]))
+    categorias_existentes.sort()
+
+    for categoria in categorias_existentes:
+        itens = [r for r in roupas if r['categoria'] == categoria]
+        if not itens: continue
+
+        st.markdown(f"### {categoria}")
+        
+        cols = st.columns(4)
+        
+        for index, item in enumerate(itens):
+            with cols[index % 4]:
+                with st.container(border=True):
+                    # foto
+                    if item.get('imagem_url'):
+                        st.image(item['imagem_url'], use_container_width=True)
+                    else:
+                        st.markdown("<div style='height:120px; background:#f5f5f5; color:#999; display:flex; align-items:center; justify-content:center; border-radius:5px;'>Sem Imagem</div>", unsafe_allow_html=True)
+                    
+                    # detalhes
+                    st.markdown(f"**{item['nome']}**")
+                    st.caption(f"{item['marca']} • {item['cor']}")
+                    
+                    # status
+                    if item['status'] == 'Disponível':
+                        st.markdown(":green[Disponível]")
+                    else:
+                        st.markdown(f":red[Emprestado]")
+                        st.caption(f"Para: {item.get('emprestado_para')}")
+
+                    with st.popover("Ações", use_container_width=True):
+                        
+                        # Emprestar / Devolver
+                        if item['status'] == 'Disponível':
+                            if st.button("Emprestar", key=f"emp_{item['id']}", use_container_width=True):
+                                modal_emprestimo(item['id'], item['nome'])
+                        else:
+                            if st.button("Receber Devolução", key=f"dev_{item['id']}", type="primary", use_container_width=True):
+                                registrar_devolucao(item['id'])
+                                st.rerun()
+
+                        # Editar
+                        if st.button("Editar", key=f"edt_{item['id']}", use_container_width=True):
+                            modal_editar(item)
+
+                        # Excluir (com confirmação segura)
+                        st.divider()
+                        if st.button("Excluir", key=f"exc_{item['id']}", type="primary", use_container_width=True):
+                            modal_excluir(item['id'], item['nome'])

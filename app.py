@@ -22,7 +22,7 @@ def main():
 
         st.title("Meu Guarda-Roupa")
         
-        t1, t2 = st.tabs(["📸 Novo", "👗 Acervo"])
+        t1, t2 = st.tabs(["Novo", "Guarda-Roupa"])
         
         with t1:
             render_aba_cadastro(st.session_state.user.id)

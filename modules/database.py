@@ -39,6 +39,9 @@ def upload_imagem(file, user_id):
 def salvar_roupa(dados):
     return supabase.table("roupas").insert(dados).execute()
 
+def atualizar_roupa(id_roupa, dados):
+    return supabase.table("roupas").update(dados).eq("id", id_roupa).execute()
+
 def buscar_roupas_usuario():
     return supabase.table("roupas").select("*").order("created_at", desc=True).execute()
 
