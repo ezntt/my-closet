@@ -86,10 +86,10 @@ def modal_excluir(id_roupa, nome_peca):
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Cancelar", use_container_width=True):
+        if st.button("Cancelar", width='stretch'):
             st.rerun()
     with col2:
-        if st.button("Sim, Excluir", type="primary", use_container_width=True):
+        if st.button("Sim, Excluir", type="primary", width='stretch'):
             excluir_roupa(id_roupa)
             st.success("Item excluído.")
             sleep(0.5)
@@ -231,7 +231,7 @@ def render_aba_acervo():
                 with st.container(border=True):
                     # foto
                     if item.get('imagem_url'):
-                        st.image(item['imagem_url'], use_container_width=True)
+                        st.image(item['imagem_url'], width='stretch')
                     else:
                         st.markdown("<div style='height:120px; background:#f5f5f5; color:#999; display:flex; align-items:center; justify-content:center; border-radius:5px;'>Sem Imagem</div>", unsafe_allow_html=True)
                     
@@ -246,22 +246,22 @@ def render_aba_acervo():
                         st.markdown(f":red[Emprestado]")
                         st.caption(f"Para: {item.get('emprestado_para')}")
 
-                    with st.popover("Ações", use_container_width=True):
+                    with st.popover("Ações", width='stretch'):
                         
                         # Emprestar / Devolver
                         if item['status'] == 'Disponível':
-                            if st.button("Emprestar", key=f"emp_{item['id']}", use_container_width=True):
+                            if st.button("Emprestar", key=f"emp_{item['id']}", width='stretch'):
                                 modal_emprestimo(item['id'], item['nome'])
                         else:
-                            if st.button("Receber Devolução", key=f"dev_{item['id']}", type="primary", use_container_width=True):
+                            if st.button("Receber Devolução", key=f"dev_{item['id']}", type="primary", width='stretch'):
                                 registrar_devolucao(item['id'])
                                 st.rerun()
 
                         # Editar
-                        if st.button("Editar", key=f"edt_{item['id']}", use_container_width=True):
+                        if st.button("Editar", key=f"edt_{item['id']}", width='stretch'):
                             modal_editar(item)
 
                         # Excluir
                         st.divider()
-                        if st.button("Excluir", key=f"exc_{item['id']}", type="primary", use_container_width=True):
+                        if st.button("Excluir", key=f"exc_{item['id']}", type="primary", width='stretch'):
                             modal_excluir(item['id'], item['nome'])

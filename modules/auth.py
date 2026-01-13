@@ -12,7 +12,7 @@ def render_login():
         login, cadastro = st.columns(2)
 
         with login:
-            if st.button("Entrar", type="primary", use_container_width=True):
+            if st.button("Entrar", type="primary", width='stretch'):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                     st.session_state.user = res.user
@@ -21,11 +21,11 @@ def render_login():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro: {e}")
-                    
+
         with cadastro:
             with st.expander("Cadastrar"):
                 nome_completo = st.text_input("Nome Completo")
-                if st.button("Criar Conta", use_container_width=True):
+                if st.button("Criar Conta", width='stretch'):
                     try:
                         res = supabase.auth.sign_up({
                             "email": email, 
