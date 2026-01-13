@@ -2,7 +2,7 @@ import streamlit as st
 from modules.auth import render_login, logout
 from modules.ui import render_aba_cadastro, render_aba_acervo
 
-st.set_page_config(page_title="Meu Acervo", page_icon="👕", layout="centered")
+st.set_page_config(page_title="My Closet", page_icon="👕", layout="centered")
 
 if 'user' not in st.session_state:
     st.session_state.user = None
