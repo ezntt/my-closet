@@ -99,7 +99,15 @@ def modal_excluir(id_roupa, nome_peca):
 def render_aba_cadastro(user_id):
     st.subheader("Nova Peça")
     
-    uploaded_file = st.file_uploader("Foto da Roupa (Uma IA preencherá os dados automaticamente)", type=['jpg', 'png', 'jpeg'])
+    # uploaded_file = st.file_uploader("Foto da Roupa (Uma IA preencherá os dados automaticamente)", type=['jpg', 'png', 'jpeg'])
+
+    foto_camera = st.camera_input("Tirar foto agora")
+    
+    # OPÇÃO 2: Upload (Caso a foto já exista)
+    uploaded_file = st.file_uploader("Ou escolha da galeria", type=['jpg', 'png', 'jpeg'])
+    
+    # Lógica de Prioridade: Se tirou foto, usa a da câmera. Senão, tenta o upload.
+    uploaded_file = foto_camera if foto_camera else uploaded_file
     
     if 'form' not in st.session_state:
         st.session_state.form = {
@@ -253,7 +261,7 @@ def render_aba_acervo():
                         if st.button("Editar", key=f"edt_{item['id']}", use_container_width=True):
                             modal_editar(item)
 
-                        # Excluir (com confirmação segura)
+                        # Excluir
                         st.divider()
                         if st.button("Excluir", key=f"exc_{item['id']}", type="primary", use_container_width=True):
                             modal_excluir(item['id'], item['nome'])
