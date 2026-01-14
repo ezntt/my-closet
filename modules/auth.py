@@ -4,10 +4,10 @@ from modules.database import supabase
 from time import sleep
 import datetime
 
-# O @st.cache_resource garante que o gerenciador seja carregado uma única vez
-@st.cache_resource(experimental_allow_widgets=True)
-def get_manager():
-    return stx.CookieManager()
+# --- GERENCIADOR DE COOKIES ---
+# CORREÇÃO: Adicionamos um parametro 'key' para evitar colisão de nomes
+def get_manager(key="init"):
+    return stx.CookieManager(key=key)
 
 def configurar_estilo_login():
     st.markdown("""
@@ -26,29 +26,33 @@ def configurar_estilo_login():
         </style>
     """, unsafe_allow_html=True)
 
-# checa se há sessão válida no cookie
+# Função para rodar no inicio do app e checar se já tem cookie
 def verificar_sessao_cookie():
-    cookie_manager = get_manager()
-    
-    token = cookie_manager.get(cookie="sb_token")
-    
-    if token and st.session_state.user is None:
-        try:
+    try:
+        # CORREÇÃO: Key única para não conflitar com o login
+        cookie_manager = get_manager(key="cookie_check")
+        
+        # Tenta pegar o token salvo
+        token = cookie_manager.get(cookie="sb_token")
+        
+        if token and st.session_state.user is None:
             # Pergunta pro Supabase: "Esse token ainda vale?"
             res = supabase.auth.get_user(token)
             if res and res.user:
                 st.session_state.user = res.user
                 return True
-        except Exception as e:
-            # Se o token for inválido/expirado, apaga ele
-            print(f"Token inválido: {e}")
-            cookie_manager.delete("sb_token")
-            return False
+    except Exception as e:
+        print(f"Sessão não restaurada: {e}")
+        return False
+    
     return False
 
 def render_login():
     configurar_estilo_login()
-    cookie_manager = get_manager()
+    
+    # CORREÇÃO: Key única para o formulário de login
+    cookie_manager = get_manager(key="cookie_login")
+
     st.markdown("## Login")
 
     with st.container(border=True):
@@ -64,7 +68,7 @@ def render_login():
                     
                     st.session_state.user = res.user
                     
-                    # salva o cookie com validade de 30 dias
+                    # Salva no Cookie (Validade 30 dias)
                     if res.session:
                         token = res.session.access_token
                         cookie_manager.set("sb_token", token, expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
@@ -97,12 +101,15 @@ def render_login():
                         st.error(f"Erro: {e}")
 
 def logout():
-    # Remove do banco (opcional), remove do state e remove do cookie
+    # CORREÇÃO: Key única para o logout
+    try:
+        cookie_manager = get_manager(key="cookie_logout")
+        cookie_manager.delete("sb_token")
+    except:
+        pass
+        
     supabase.auth.sign_out()
     st.session_state.user = None
     
-    cookie_manager = get_manager()
-    cookie_manager.delete("sb_token")
-    
-    sleep(0.5) # Dá tempo do cookie ser deletado
+    sleep(0.5)
     st.rerun()
