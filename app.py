@@ -1,13 +1,20 @@
 import streamlit as st
-from modules.auth import render_login, logout
+from modules.auth import render_login, logout, verificar_sessao_cookie
 from modules.ui import render_aba_cadastro, render_aba_acervo, render_aba_stylist
 
-st.set_page_config(page_title="My Closet", page_icon="👕", layout="centered")
+# Configuração da página
+st.set_page_config(page_title="Meu Acervo", page_icon="👕", layout="centered")
 
+# Inicializa sessão do usuário
 if 'user' not in st.session_state:
     st.session_state.user = None
 
 def main():
+    # tenta recuperar sessão via cookie
+    if not st.session_state.user:
+        verificar_sessao_cookie()
+
+    # caso continue sem usuário
     if not st.session_state.user:
         render_login()
     else:
