@@ -2,7 +2,8 @@ import streamlit as st
 from supabase import create_client, Client
 import datetime
 
-@st.cache_resource  # evita reconexões desnecessárias
+# inicializa conexão supabase
+@st.cache_resource
 def init_connection():
     url = st.secrets["supabase"]["url"]
     key = st.secrets["supabase"]["key"]
@@ -10,20 +11,18 @@ def init_connection():
 
 supabase = init_connection()
 
-# bucket no supabase
+# upload de imagem
 def upload_imagem(file, user_id):
     try:
-
         user_path = str(user_id)
         
-        # limpa nome do arquivo
+        # formata nome do arquivo
         file_ext = file.name.split('.')[-1]
         timestamp = datetime.datetime.now().timestamp()
         file_name = f"{user_path}/{timestamp}.{file_ext}"
         
         file_bytes = file.getvalue()
         
-        # Upload
         res = supabase.storage.from_("fotos-roupas").upload(
             path=file_name,
             file=file_bytes,
@@ -36,6 +35,7 @@ def upload_imagem(file, user_id):
         st.error(f"Erro detalhado no upload: {e}")
         return None
 
+# crud de roupas
 def salvar_roupa(dados):
     return supabase.table("roupas").insert(dados).execute()
 

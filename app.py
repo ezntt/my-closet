@@ -1,11 +1,11 @@
 import streamlit as st
 from modules.auth import render_login, logout, verificar_sessao_cookie
-from modules.ui import render_aba_cadastro, render_aba_acervo, render_aba_stylist
+from modules.ui import render_aba_cadastro, render_aba_closet, render_aba_stylist
 
-# Configuração da página
-st.set_page_config(page_title="Meu Acervo", page_icon="👕", layout="centered")
+# configuração da página
+st.set_page_config(page_title="My Closet", page_icon="👕", layout="centered")
 
-# Inicializa sessão do usuário
+# inicializa sessão
 if 'user' not in st.session_state:
     st.session_state.user = None
 
@@ -27,13 +27,13 @@ def main():
             if st.button("Sair"):
                 logout()
 
-        st.title("Meu Guarda-Roupa")
+        st.title("My Closet")
         
-        # AGORA COM 3 ABAS
+        # 3 abas principais
         closet, cadastro, stylist = st.tabs(["Acervo", "Cadastrar", "Stylist"])
         
         with closet:
-            render_aba_acervo()
+            render_aba_closet()
         
         with cadastro:
             render_aba_cadastro(st.session_state.user.id)

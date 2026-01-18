@@ -4,8 +4,7 @@ from modules.database import supabase
 from time import sleep
 import datetime
 
-# --- GERENCIADOR DE COOKIES ---
-# CORREÇÃO: Adicionamos um parametro 'key' para evitar colisão de nomes
+# gerenciador de cookies
 def get_manager(key="init"):
     return stx.CookieManager(key=key)
 
@@ -16,7 +15,6 @@ def configurar_estilo_login():
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
-            /* Centraliza o container de login */
             div[data-testid="stVerticalBlockBorderWrapper"] {
                 border-radius: 12px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -26,17 +24,14 @@ def configurar_estilo_login():
         </style>
     """, unsafe_allow_html=True)
 
-# Função para rodar no inicio do app e checar se já tem cookie
+# verificação de sessão ativa
 def verificar_sessao_cookie():
     try:
-        # CORREÇÃO: Key única para não conflitar com o login
         cookie_manager = get_manager(key="cookie_check")
-        
-        # Tenta pegar o token salvo
         token = cookie_manager.get(cookie="sb_token")
         
         if token and st.session_state.user is None:
-            # Pergunta pro Supabase: "Esse token ainda vale?"
+            # valida token no supabase
             res = supabase.auth.get_user(token)
             if res and res.user:
                 st.session_state.user = res.user
@@ -47,10 +42,9 @@ def verificar_sessao_cookie():
     
     return False
 
+# renderiza tela de login
 def render_login():
     configurar_estilo_login()
-    
-    # CORREÇÃO: Key única para o formulário de login
     cookie_manager = get_manager(key="cookie_login")
 
     st.markdown("## Login")
@@ -65,10 +59,9 @@ def render_login():
             if st.button("Entrar", type="primary", use_container_width=True):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                    
                     st.session_state.user = res.user
                     
-                    # Salva no Cookie (Validade 30 dias)
+                    # salva token (30 dias)
                     if res.session:
                         token = res.session.access_token
                         cookie_manager.set("sb_token", token, expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
@@ -100,8 +93,8 @@ def render_login():
                     except Exception as e:
                         st.error(f"Erro: {e}")
 
+# encerra sessão
 def logout():
-    # CORREÇÃO: Key única para o logout
     try:
         cookie_manager = get_manager(key="cookie_logout")
         cookie_manager.delete("sb_token")

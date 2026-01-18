@@ -2,33 +2,40 @@ import streamlit as st
 from google import genai
 from PIL import Image
 import json
+from modules.config import CATEGORIAS, CORES, OCASIOES, ESTACOES, TECIDOS, ESTILOS
 
 gemini_model = "gemini-flash-latest"
 
 def get_client():
     return genai.Client(api_key=st.secrets["gemini"]["api_key"])
 
-# retorna lista na ordem: categoria, cor, marca, nome curto, ocasiao, estacao, tecido, estilo
+# visão computacional para extrair dados da roupa
 def analisar_imagem(image_file):
     try:
         client = get_client()
-        
-        
         img = Image.open(image_file)
         
-        prompt = """
+        # formatação das opções para o prompt
+        str_categorias = ", ".join(CATEGORIAS)
+        str_cores = ", ".join(CORES)
+        str_ocasioes = ", ".join(OCASIOES)
+        str_estacoes = ", ".join(ESTACOES)
+        str_tecidos = ", ".join(TECIDOS)
+        str_estilos = ", ".join(ESTILOS)
+        
+        prompt = f"""
         Você é um especialista em catalogação de moda. Analise esta imagem.
         Extraia os dados técnicos e responda APENAS com os valores separados por vírgula, na ordem exata abaixo.
-        Se não souber, chute o mais provável baseada na imagem.
+        Se não souber com certeza, escolha o mais provável dentre as opções listadas.
         
-        1. Categoria (Ex: Camiseta, Calça, Vestido, Casaco, Tênis, Acessório, Saia, Shorts, Blusa)
-        2. Cor Principal (Ex: Preto, Azul Marinho, Bege, Estampado)
+        1. Categoria (Escolha estritamente entre: {str_categorias})
+        2. Cor Principal (Exemplos: {str_cores})
         3. Marca (Se visível, senão 'Desconhecida')
         4. Nome Curto Sugerido (Ex: Camiseta Preta Básica)
-        5. Ocasião (Escolha uma: Casual, Trabalho, Festa, Esporte, Formal)
-        6. Estação Ideal (Escolha uma: Verão, Inverno, Meia-Estação, Todas)
-        7. Tecido/Material (Ex: Algodão, Jeans, Couro, Poliéster, Lã, Sintético)
-        8. Estilo (Ex: Básico, Vintage, Streetwear, Elegante, Esportivo)
+        5. Ocasião (Escolha estritamente entre: {str_ocasioes})
+        6. Estação Ideal (Escolha estritamente entre: {str_estacoes})
+        7. Tecido/Material (Exemplos: {str_tecidos})
+        8. Estilo (Exemplos: {str_estilos})
 
         Exemplo de resposta:
         Tênis, Branco, Nike, Tênis Air Force, Casual, Todas, Couro, Streetwear
@@ -54,12 +61,12 @@ def analisar_imagem(image_file):
         st.error(f"Erro na comunicação com a IA: {str(e)}.\nTente novamente.")
         return None
 
-# NOVA FUNÇÃO: Gera sugestões de looks baseados nas roupas do usuário
+# geração de looks via ia
 def sugerir_looks(lista_roupas, ocasiao_escolhida):
     try:
         client = get_client()
 
-        # Prepara o inventário para a IA ler (ID é crucial para recuperarmos a foto depois)
+        # formata inventário para prompt
         texto_inventario = ""
         for item in lista_roupas:
             texto_inventario += f"- ID: {item['id']} | Nome: {item['nome']} | Categoria: {item['categoria']} | Cor: {item['cor']} | Estilo: {item.get('estilo', '')}\n"
@@ -90,9 +97,8 @@ def sugerir_looks(lista_roupas, ocasiao_escolhida):
             contents=prompt
         )
         
-        # Limpeza básica caso a IA mande markdown
+        # tratamento da resposta json
         texto_limpo = response.text.replace("```json", "").replace("```", "").strip()
-        
         return json.loads(texto_limpo)
         
     except Exception as e:
